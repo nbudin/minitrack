@@ -1,80 +1,192 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
-	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!--
+To change this template, choose Tools | Templates
+and open the template in the editor.
+-->
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
+    <title></title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <script type="application/x-javascript" src="http://www.google.com/jsapi"></script>
+    <script type="application/x-javascript"> google.load("jquery", "1.3.2"); </script>
+    <script type="application/x-javascript" src="jqtouch.min.js"></script>
+    <script type="application/x-javascript" src="jqtouch.transitions.js"></script>
 
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
-<head>
-	<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-
-	<title>nbudin/minitrack @ GitHub</title>
-	
-	<style type="text/css">
-		body {
-  		margin-top: 1.0em;
-  		background-color: #e89d30;
-		  font-family: "Helvetica,Arial,FreeSans"; 
-  		color: #000000;
-    }
-    #container {
-      margin: 0 auto;
-      width: 700px;
-    }
-		h1 { font-size: 3.8em; color: #1762cf; margin-bottom: 3px; }
-		h1 .small { font-size: 0.4em; }
-		h1 a { text-decoration: none }
-		h2 { font-size: 1.5em; color: #1762cf; }
-    h3 { text-align: center; color: #1762cf; }
-    a { color: #1762cf; }
-    .description { font-size: 1.2em; margin-bottom: 30px; margin-top: 30px; font-style: italic;}
-    .download { float: right; }
-		pre { background: #000; color: #fff; padding: 15px;}
-    hr { border: 0; width: 80%; border-bottom: 1px solid #aaa}
-    .footer { text-align:center; padding-top:30px; font-style: italic; }
-	</style>
-	
-</head>
-
-<body>
-  <a href="http://github.com/nbudin/minitrack"><img style="position: absolute; top: 0; right: 0; border: 0;" src="http://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub" /></a>
-  
-  <div id="container">
-
-    <div class="download">
-      <a href="http://github.com/nbudin/minitrack/zipball/master">
-        <img border="0" width="90" src="http://github.com/images/modules/download/zip.png"></a>
-      <a href="http://github.com/nbudin/minitrack/tarball/master">
-        <img border="0" width="90" src="http://github.com/images/modules/download/tar.png"></a>
-    </div>
-      
-    <h1><a href="http://github.com/nbudin/minitrack">minitrack</a> 
-      <span class="small">by <a href="http://github.com/nbudin">nbudin</a></span></h1>
-
-    <div class="description">
-      A simple HTML5 calorie tracker for mobile phones
-    </div>
-
-    <h2>Authors</h2>
-<p>Nat Budin (natbudin@gmail.com)<br/><br/>      </p>
-<h2>Contact</h2>
-<p>Nat Budin (natbudin@gmail.com)<br/>      </p>
-
-
-    <h2>Download</h2>
-    <p>
-      You can download this project in either
-      <a href="http://github.com/nbudin/minitrack/zipball/master">zip</a> or
-      <a href="http://github.com/nbudin/minitrack/tarball/master">tar</a> formats.
-    </p>
-    <p>You can also clone the project with <a href="http://git-scm.com">Git</a>
-      by running:
-      <pre>$ git clone git://github.com/nbudin/minitrack</pre>
-    </p>
-      
-    <div class="footer">
-      get the source code on GitHub : <a href="http://github.com/nbudin/minitrack">nbudin/minitrack</a>
-    </div>
+    <link rel="stylesheet" href="jqtouch.min.css"/>
+    <link rel="stylesheet" href="theme.min.css"/>
     
-  </div>
+    <script type="text/javascript">
+        var db;
+        var logDate;
 
-  
-</body>
+        function initDatabase() {
+            if (!window.openDatabase) {
+                alert("Your browser doesn't support offline databases, which Trackr requires to function.");
+            }
+
+            db = window.openDatabase("trackr", "", "Trackr Calorie database", 1048576);
+            db.transaction(function(tx) {
+                tx.executeSql("CREATE TABLE IF NOT EXISTS calorie_entries(\n\
+                                   id INTEGER PRIMARY KEY autoincrement,\n\
+                                   timestamp INTEGER,\n\
+                                   calories INTEGER,\n\
+                                   description TEXT\n\
+                               );");
+            });
+        }
+        
+        function getDayStart() {
+            var dayStart = new Date();
+            dayStart.setMilliseconds(0);
+            dayStart.setSeconds(0);
+            dayStart.setMinutes(0);
+            dayStart.setHours(0);
+            
+            return dayStart;
+        }
+
+        function updateCount() {
+            var dayStart = getDayStart();
+            db.transaction(function(tx) {
+                tx.executeSql("SELECT SUM(calories) total FROM calorie_entries WHERE timestamp >= ?;",
+                              [dayStart.getTime()], function (tx, results) {
+                    $('#currentCount').html(results.rows.item(0).total);
+                });
+            })
+        }
+
+        function addCalories() {
+            var $input = $(this).find("input[name=calories]");
+            var calories = parseInt($input.val());
+            var description = $(this).find("input[name=description]").val();
+            if (calories) {
+                var now = new Date().getTime();
+                db.transaction(function(tx) {
+                    tx.executeSql("INSERT INTO calorie_entries (timestamp, calories, description) \n\
+                                   VALUES (?, ?, ?);",
+                                  [now, calories, description]);
+                });
+
+                $(this).find("input").val("");
+                $input.focus();
+
+                updateCount();
+            } else {
+                alert("Please enter a number of calories to add.");
+            }
+
+            return false;
+        }
+
+        function getLogDate() {
+            if (logDate == null)
+                logDate = getDayStart();
+
+            return logDate;
+        }
+
+        function generateLogEntry(timestamp, calories, description) {
+            var date = new Date(timestamp);
+            var hours = date.getHours();
+            
+            var humanTime = "";
+            if (hours == 0) {
+                humanTime += "12"
+            } else if (hours > 12) {
+                humanTime += (hours - 12);
+            } else {
+                humanTime += hours;
+            }
+            humanTime += ":" + date.getMinutes();
+            if (hours < 12) {
+                humanTime += " AM";
+            } else {
+                humanTime += " PM";
+            }
+
+            return $("<tr>" +
+                     "<td>" + humanTime + "</td>" +
+                     "<td>" + calories + "</td>" +
+                     "<td>" + description + "</td>" +
+                     "</tr>");
+        }
+
+        function updateLog() {
+            var logStart = getLogDate();
+            var logEnd = new Date(logStart.getTime());
+            logEnd.setDate(logStart.getDate() + 1);
+
+            $('#logDate').html(logStart.toLocaleDateString());
+
+            var $log = $('#logTable');
+            $log.children(":not(:first)").remove();
+            db.transaction(function(tx) {
+                tx.executeSql("SELECT timestamp, calories, description FROM calorie_entries\n\
+                               WHERE timestamp >= ? AND timestamp < ? ORDER BY timestamp;",
+                              [logStart.getTime(), logEnd.getTime()], function (tx, results) {
+                                  for (var i=0; i<results.rows.length; i++) {
+                                      var row = results.rows.item(i);
+                                      $log.append(generateLogEntry(row.timestamp, row.calories, row.description));
+                                  }
+                              });
+            });
+        }
+
+        var jQT = new $.jQTouch({
+            preloadImages: [
+
+            ]
+        });
+
+        $(function() {
+            initDatabase();
+            $("form#addCalories").bind("submit", addCalories);
+
+            updateCount();
+            updateLog();
+        });
+    </script>
+  </head>
+  <body>
+      <div id="home" class="current">
+          <div class="toolbar">
+              <h1>miniTrack</h1>
+              <a class="button slideup" href="#log">Log</a>
+          </div>
+
+          <div style="text-align: center; margin-top: 0.5em;">
+              <div id="currentCount" style="font-size: 200%; font-weight: bold;"></div>
+              calories today
+          </div>
+
+          <form action="#" id="addCalories">
+              <ul class="edit rounded">
+                  <li>
+                      <input type="text" placeholder="Enter calories" name="calories"/>
+                  </li>
+                  <li>
+                      <input type="text" placeholder="Description (optional)" name="description"/>
+                  </li>
+              </ul>
+              <div style="text-align: center;">
+                  <button type="submit" style="font-size: 125%; padding: 0.5em;">Add to log</button>
+              </div>
+          </form>
+      </div>
+
+      <div id="log">
+          <div class="toolbar">
+              <h1 id="logDate"></h1>
+              <a class="button slidedown" href="#home">Close</a>
+          </div>
+          
+          <table id="logTable">
+              <tr>
+                  <th>Time</th>
+                  <th>Calories</th>
+                  <th>Description</th>
+              </tr>
+          </table>
+      </div>
+  </body>
 </html>
