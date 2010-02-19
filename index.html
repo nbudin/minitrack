@@ -24,7 +24,7 @@ and open the template in the editor.
                 alert("Your browser doesn't support offline databases, which Trackr requires to function.");
             }
 
-            db = window.openDatabase("trackr", "", "Trackr Calorie database", 1048576);
+            db = window.openDatabase("minitrack", "", "Trackr Calorie database", 1048576);
             db.transaction(function(tx) {
                 tx.executeSql("CREATE TABLE IF NOT EXISTS calorie_entries(\n\
                                    id INTEGER PRIMARY KEY autoincrement,\n\
@@ -50,7 +50,10 @@ and open the template in the editor.
             db.transaction(function(tx) {
                 tx.executeSql("SELECT SUM(calories) total FROM calorie_entries WHERE timestamp >= ?;",
                               [dayStart.getTime()], function (tx, results) {
-                    $('#currentCount').html(results.rows.item(0).total);
+                                  var total = results.rows.item(0).total;
+                                  if (total) {
+                                      $('#currentCount').html(total);
+                                  }
                 });
             })
         }
